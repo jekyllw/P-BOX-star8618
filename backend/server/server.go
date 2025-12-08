@@ -19,12 +19,13 @@ import (
 	"p-box/backend/modules/speedtest"
 	"p-box/backend/modules/subscription"
 	"p-box/backend/modules/system"
+	"p-box/backend/modules/wireguard"
 	"p-box/backend/websocket"
 )
 
 // 版本信息 (由 main.go 设置)
 var (
-	Version   = "2.0.0"
+	Version   = "2.0.2"
 	BuildTime = "unknown"
 )
 
@@ -119,12 +120,18 @@ func (s *Server) setupRoutes() {
 		// 代理模块
 		s.proxyHandler = proxy.NewHandler(s.config.DataDir)
 		s.proxyHandler.RegisterRoutes(api.Group("/proxy"))
-		// 检查自动启动
-		s.proxyHandler.GetService().AutoStartIfEnabled()
 
 		// 代理设置模块
 		settingsHandler := proxy.NewSettingsHandler(s.config.DataDir)
 		settingsHandler.RegisterRoutes(api.Group("/proxy"))
+
+		// 设置代理设置提供者（让 proxy service 能获取优化配置）
+		s.proxyHandler.GetService().SetSettingsProvider(func() *proxy.ProxySettings {
+			return settingsHandler.GetCurrentSettings()
+		})
+
+		// 检查自动启动
+		s.proxyHandler.GetService().AutoStartIfEnabled()
 
 		// 核心模块
 		coreHandler := core.NewHandler(s.config.DataDir)
@@ -167,6 +174,11 @@ func (s *Server) setupRoutes() {
 		// 测速模块
 		speedtestHandler := speedtest.NewHandler()
 		speedtestHandler.RegisterRoutes(api.Group("/speedtest"))
+
+		// WireGuard 模块
+		wgService := wireguard.NewService(s.config.DataDir)
+		wgHandler := wireguard.NewHandler(wgService)
+		wgHandler.RegisterRoutes(api)
 	}
 
 	// WebSocket 路由

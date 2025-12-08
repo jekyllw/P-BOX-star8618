@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -183,14 +182,10 @@ func (s *Service) getLinuxResources(res *SystemResources) {
 	}
 
 	// 磁盘信息
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs("/", &stat); err == nil {
-		res.DiskTotal = stat.Blocks * uint64(stat.Bsize)
-		res.DiskUsed = (stat.Blocks - stat.Bfree) * uint64(stat.Bsize)
-		if res.DiskTotal > 0 {
-			res.DiskPercent = float64(res.DiskUsed) / float64(res.DiskTotal) * 100
-		}
-	}
+	diskInfo := GetDiskInfo("/")
+	res.DiskTotal = diskInfo.Total
+	res.DiskUsed = diskInfo.Used
+	res.DiskPercent = diskInfo.Percent
 
 	// 运行时间
 	if data, err := os.ReadFile("/proc/uptime"); err == nil {
@@ -279,14 +274,10 @@ func (s *Service) getMacOSResources(res *SystemResources) {
 	}
 
 	// 磁盘信息
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs("/", &stat); err == nil {
-		res.DiskTotal = stat.Blocks * uint64(stat.Bsize)
-		res.DiskUsed = (stat.Blocks - stat.Bfree) * uint64(stat.Bsize)
-		if res.DiskTotal > 0 {
-			res.DiskPercent = float64(res.DiskUsed) / float64(res.DiskTotal) * 100
-		}
-	}
+	diskInfo := GetDiskInfo("/")
+	res.DiskTotal = diskInfo.Total
+	res.DiskUsed = diskInfo.Used
+	res.DiskPercent = diskInfo.Percent
 
 	// 运行时间
 	if out, err := exec.Command("sysctl", "-n", "kern.boottime").Output(); err == nil {

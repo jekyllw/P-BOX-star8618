@@ -55,8 +55,13 @@ type SecurityConfig struct {
 }
 
 // IsDevMode 检测是否为开发模式
-// 开发模式：通过 go run 运行，可执行文件在临时目录
+// 开发模式：通过环境变量 DEV_MODE=1 或 go run 运行
 func IsDevMode() bool {
+	// 优先检查环境变量
+	if os.Getenv("DEV_MODE") == "1" || os.Getenv("DEV_MODE") == "true" {
+		return true
+	}
+
 	exe, err := os.Executable()
 	if err != nil {
 		return true

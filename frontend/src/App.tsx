@@ -16,6 +16,8 @@ import ConfigGeneratorPage from '@/pages/ConfigGeneratorPage'
 import CoreManagePage from '@/pages/CoreManagePage'
 import ProxySettingsPage from '@/pages/ProxySettingsPage'
 import LoginPage from '@/pages/LoginPage'
+import WireGuardPage from '@/pages/WireGuardPage'
+import LegalPage from '@/pages/LegalPage'
 import { authApi } from '@/api/auth'
 
 // Auth guard component
@@ -76,6 +78,8 @@ function App() {
                 <Route path="/core-manage" element={<CoreManagePage />} />
                 <Route path="/proxy-settings" element={<ProxySettingsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/wireguard" element={<WireGuardPage />} />
+                <Route path="/legal" element={<LegalPage />} />
               </Routes>
             </Layout>
           </AuthGuard>

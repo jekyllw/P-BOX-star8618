@@ -60,6 +60,9 @@ type ProxyConfig struct {
 // NodeProvider 节点提供者接口
 type NodeProvider func() []ProxyNode
 
+// SettingsProvider 设置提供者接口（获取代理设置）
+type SettingsProvider func() *ProxySettings
+
 type Service struct {
 	dataDir          string
 	coreType         string
@@ -75,6 +78,9 @@ type Service struct {
 
 	// 节点提供者（从节点管理模块获取过滤后的节点）
 	nodeProvider NodeProvider
+
+	// 设置提供者（从设置模块获取代理设置）
+	settingsProvider SettingsProvider
 
 	// 日志收集
 	logs  []string
@@ -319,9 +325,23 @@ func (s *Service) Start() error {
 		} else {
 			fmt.Println("✅ 系统代理已自动启用")
 		}
+
+		// 配置所有浏览器使用系统代理（备份用户原有设置）
+		go s.configureAllBrowsers()
 	}
 
 	return nil
+}
+
+// configureAllBrowsers 配置所有浏览器使用系统代理
+func (s *Service) configureAllBrowsers() {
+	// 设置备份路径
+	system.SetBrowserBackupPath(s.dataDir)
+
+	fmt.Println("🌐 正在配置浏览器使用系统代理...")
+	if err := system.ConfigureAllBrowsersProxy(); err != nil {
+		fmt.Printf("⚠️  配置浏览器失败: %v\n", err)
+	}
 }
 
 func (s *Service) Stop() error {
@@ -356,6 +376,11 @@ func (s *Service) Stop() error {
 		fmt.Printf("⚠️ 清除系统代理失败: %v\n", err)
 	} else {
 		fmt.Println("✓ 系统代理已清除")
+	}
+
+	// 恢复浏览器代理设置（恢复用户原有配置）
+	if err := system.RestoreAllBrowsersProxy(); err != nil {
+		fmt.Printf("⚠️ 恢复浏览器设置失败: %v\n", err)
 	}
 
 	return nil
@@ -422,6 +447,13 @@ func (s *Service) SetNodeProvider(provider NodeProvider) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.nodeProvider = provider
+}
+
+// SetSettingsProvider 设置代理设置提供者
+func (s *Service) SetSettingsProvider(provider SettingsProvider) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.settingsProvider = provider
 }
 
 // RegenerateConfig 从节点管理模块获取过滤后的节点并生成配置（公开方法）
@@ -652,6 +684,33 @@ func (s *Service) GenerateConfig(nodes []ProxyNode) (string, error) {
 		EnableTProxy:       enableTProxy,
 		TProxyPort:         s.config.TProxyPort,
 		Template:           s.configTemplate, // 使用配置模板
+	}
+
+	// 从代理设置获取优化配置
+	if s.settingsProvider != nil {
+		settings := s.settingsProvider()
+		if settings != nil {
+			// 性能优化
+			options.UnifiedDelay = settings.UnifiedDelay
+			options.TCPConcurrent = settings.TCPConcurrent
+			options.FindProcessMode = settings.FindProcessMode
+			options.GlobalClientFingerprint = settings.GlobalClientFingerprint
+			options.KeepAliveInterval = settings.KeepAliveInterval
+			options.KeepAliveIdle = settings.KeepAliveIdle
+			options.DisableKeepAlive = settings.DisableKeepAlive
+
+			// GEO 数据
+			options.GeodataMode = settings.GeodataMode
+			options.GeodataLoader = settings.GeodataLoader
+			options.GeositeMatcher = settings.GeositeMatcher
+			options.GeoAutoUpdate = settings.GeoAutoUpdate
+			options.GeoUpdateInterval = settings.GeoUpdateInterval
+			options.GlobalUA = settings.GlobalUA
+			options.ETagSupport = settings.ETagSupport
+
+			// TUN 设置
+			options.TUNSettings = &settings.TUN
+		}
 	}
 
 	var configPath string

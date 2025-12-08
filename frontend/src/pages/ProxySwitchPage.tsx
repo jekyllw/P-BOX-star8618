@@ -16,6 +16,62 @@ interface ProxyGroup {
   all: string[]
 }
 
+// 默认代理组名称翻译映射 (中文 <-> 英文)
+const GROUP_NAME_ZH_TO_EN: Record<string, string> = {
+  '自动选择': 'Auto Select',
+  '故障转移': 'Failover',
+  '节点选择': 'Node Select',
+  '全球直连': 'Direct',
+  'AI服务': 'AI Services',
+  '国外媒体': 'Streaming',
+  '电报消息': 'Telegram',
+  '谷歌服务': 'Google',
+  '推特消息': 'Twitter',
+  '脸书服务': 'Facebook',
+  '游戏平台': 'Gaming',
+  '哔哩哔哩': 'Bilibili',
+  '微软服务': 'Microsoft',
+  '苹果服务': 'Apple',
+  '广告拦截': 'Ad Block',
+  '漏网之鱼': 'Final',
+  '香港节点': 'Hong Kong',
+  '台湾节点': 'Taiwan',
+  '日本节点': 'Japan',
+  '新加坡节点': 'Singapore',
+  '美国节点': 'United States',
+  '手动节点': 'Manual',
+  '其他节点': 'Others',
+}
+
+// 创建反向映射 (英文 -> 中文)
+const GROUP_NAME_EN_TO_ZH: Record<string, string> = Object.fromEntries(
+  Object.entries(GROUP_NAME_ZH_TO_EN).map(([zh, en]) => [en, zh])
+)
+
+// 翻译分组名称
+const translateGroupName = (name: string, lang: string): string => {
+  if (lang.startsWith('zh')) {
+    // 中文界面：英文名 -> 中文名
+    return GROUP_NAME_EN_TO_ZH[name] || name
+  } else {
+    // 英文界面：中文名 -> 英文名
+    return GROUP_NAME_ZH_TO_EN[name] || name
+  }
+}
+
+// 翻译分组类型
+const getGroupTypeName = (type: string, t: (key: string) => string): string => {
+  const lowerType = type.toLowerCase()
+  const typeMap: Record<string, string> = {
+    'selector': t('proxy.selector'),
+    'urltest': t('proxy.urlTest'),
+    'fallback': t('proxy.fallback'),
+    'loadbalance': t('proxy.loadBalance'),
+    'load-balance': t('proxy.loadBalance'),
+  }
+  return typeMap[lowerType] || type
+}
+
 // 可拖拽的分组项组件
 function SortableGroupItem({ 
   group, 
@@ -28,8 +84,10 @@ function SortableGroupItem({
   onClick: () => void
   themeStyle: string
 }) {
+  const { t, i18n } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.name })
   const Icon = getGroupIcon(group.name)
+  const displayName = translateGroupName(group.name, i18n.language)
   
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -80,12 +138,12 @@ function SortableGroupItem({
           isSelected
             ? themeStyle === 'apple-glass' ? 'text-blue-600' : 'text-cyan-400'
             : themeStyle === 'apple-glass' ? 'text-slate-700' : 'text-slate-200'
-        )}>{group.name}</div>
+        )}>{displayName}</div>
         <div className={cn(
           'text-xs truncate',
           themeStyle === 'apple-glass' ? 'text-slate-400' : 'text-slate-500'
         )}>
-          {group.type} · {group.all.length}
+          {getGroupTypeName(group.type, t)} · {group.all.length}
         </div>
       </div>
     </div>
@@ -93,7 +151,7 @@ function SortableGroupItem({
 }
 
 export default function ProxySwitchPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { themeStyle } = useThemeStore()
   const [groups, setGroups] = useState<ProxyGroup[]>([])
   const [nodes, setNodes] = useState<Record<string, ProxyNode>>({})
@@ -191,7 +249,7 @@ export default function ProxySwitchPage() {
         >
           {groups.map((group) => (
             <option key={group.name} value={group.name} className="bg-slate-800">
-              {group.name} ({group.all.length})
+              {translateGroupName(group.name, i18n.language)} ({group.all.length})
             </option>
           ))}
         </select>
@@ -229,7 +287,7 @@ export default function ProxySwitchPage() {
             "text-sm font-medium",
             themeStyle === 'apple-glass' ? 'text-slate-800' : 'text-white'
           )}>
-            {currentGroup?.name} ({currentGroup?.all.length || 0} {t('proxy.nodes')})
+            {currentGroup ? translateGroupName(currentGroup.name, i18n.language) : ''} ({currentGroup?.all.length || 0} {t('proxy.nodes')})
           </div>
           <button
             onClick={handleTestAll}

@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useSidebar } from './Layout'
 import { useThemeStore } from '@/stores/themeStore'
 import { useProxyStore } from '@/stores/proxyStore'
+import { systemApi } from '@/api/system'
 import {
   LayoutDashboard,
   Globe,
@@ -18,8 +19,9 @@ import {
   X,
   Cpu,
   Github,
-  ExternalLink,
   SlidersHorizontal,
+  Network,
+  Send,
 } from 'lucide-react'
 
 // Navigation groups
@@ -36,12 +38,13 @@ const mainNavItems = [
 const systemNavItems = [
   { path: '/core-manage', icon: Cpu, labelKey: 'nav.coreManage', color: 'red' },
   { path: '/proxy-settings', icon: SlidersHorizontal, labelKey: 'nav.proxySettings', color: 'indigo' },
+  { path: '/wireguard', icon: Network, labelKey: 'nav.wireguard', color: 'cyan' },
   { path: '/logs', icon: FileText, labelKey: 'nav.logs', color: 'yellow' },
   { path: '/settings', icon: Settings, labelKey: 'nav.settings', color: 'rose' },
 ]
 
-const APP_VERSION = '1.0'
 const GITHUB_URL = 'https://github.com/star8618/P-BOX'
+const TELEGRAM_URL = 'https://t.me/+8d9PNOt-w6BkNzU1'
 
 export default function Sidebar() {
   const location = useLocation()
@@ -49,6 +52,7 @@ export default function Sidebar() {
   const { isOpen, close } = useSidebar()
   const { themeStyle } = useThemeStore()
   const { isRunning, fetchStatus } = useProxyStore()
+  const [appVersion, setAppVersion] = useState('0.0.0')
 
   // 获取代理状态
   useEffect(() => {
@@ -56,6 +60,15 @@ export default function Sidebar() {
     const interval = setInterval(fetchStatus, 5000)
     return () => clearInterval(interval)
   }, [fetchStatus])
+
+  // 获取应用版本号
+  useEffect(() => {
+    systemApi.getInfo().then(info => {
+      if (info?.version) {
+        setAppVersion(info.version)
+      }
+    }).catch(() => {})
+  }, [])
 
   // 根据代理状态过滤导航项
   const filteredMainNavItems = mainNavItems.filter(item => {
@@ -175,23 +188,39 @@ export default function Sidebar() {
                   'text-xs font-semibold',
                   themeStyle === 'apple-glass' ? 'text-slate-700' : 'text-white'
                 )}>P-BOX</div>
-                <div className="text-[10px] text-slate-500 font-mono">v{APP_VERSION}</div>
+                <div className="text-[10px] text-slate-500 font-mono">v{appVersion}</div>
               </div>
             </div>
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                'flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors',
-                themeStyle === 'apple-glass'
-                  ? 'hover:bg-black/5 text-slate-600'
-                  : 'hover:bg-white/10 text-slate-400'
-              )}
-            >
-              <Github className="w-4 h-4" />
-              <ExternalLink className="w-3 h-3" />
-            </a>
+            <div className="flex items-center gap-1">
+              <a
+                href={TELEGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  'flex items-center gap-1 p-1.5 rounded-md text-xs transition-colors',
+                  themeStyle === 'apple-glass'
+                    ? 'hover:bg-black/5 text-slate-600'
+                    : 'hover:bg-white/10 text-slate-400'
+                )}
+                title="Join Telegram Group"
+              >
+                <Send className="w-4 h-4" />
+              </a>
+              <a
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  'flex items-center gap-1 p-1.5 rounded-md text-xs transition-colors',
+                  themeStyle === 'apple-glass'
+                    ? 'hover:bg-black/5 text-slate-600'
+                    : 'hover:bg-white/10 text-slate-400'
+                )}
+                title="GitHub"
+              >
+                <Github className="w-4 h-4" />
+              </a>
+            </div>
           </div>
         </div>
       </div>

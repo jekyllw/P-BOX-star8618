@@ -107,8 +107,13 @@ export interface ProxySettings {
   // GEO 数据
   geodataMode: boolean
   geodataLoader: string
+  geositeMatcher: string
   geoAutoUpdate: boolean
   geoUpdateInterval: number
+
+  // 外部资源
+  globalUa: string
+  etagSupport: boolean
 
   // 网络接口
   interfaceName: string

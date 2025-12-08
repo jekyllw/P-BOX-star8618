@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Palette, Info, Check, Server, Power, Zap, Rocket, Gauge, ArrowUpDown, Loader2, Lock } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Palette, Info, Check, Server, Power, Zap, Rocket, Gauge, ArrowUpDown, Loader2, Lock, Shield, ChevronRight } from 'lucide-react'
 import { useThemeStore, ThemeStyle } from '@/stores/themeStore'
 import { systemApi, SystemConfig } from '@/api/system'
 import { authApi } from '@/api/auth'
@@ -8,6 +9,7 @@ import { cn } from '@/lib/utils'
 
 export default function SettingsPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { themeStyle, setThemeStyle } = useThemeStore()
   const [sysConfig, setSysConfig] = useState<SystemConfig | null>(null)
   const [sysLoading, setSysLoading] = useState(true)
@@ -56,9 +58,36 @@ export default function SettingsPage() {
       {/* 安全 */}
       <div className="glass-card p-5">
         <h3 className={cn('text-sm font-medium mb-4 flex items-center gap-2', themeStyle === 'apple-glass' ? 'text-slate-800' : 'text-white')}><Lock className={cn('w-4 h-4', themeStyle === 'apple-glass' ? 'text-blue-500' : 'text-cyan-400')} />{t('settings.security')}</h3>
-        <div className="flex items-center justify-between">
-          <div><span className={cn('text-sm', themeStyle === 'apple-glass' ? 'text-slate-600' : 'text-slate-300')}>{t('settings.enableAuth')}</span><p className={cn('text-xs', themeStyle === 'apple-glass' ? 'text-slate-400' : 'text-slate-500')}>{t('settings.enableAuthDesc')}</p></div>
-          <Toggle value={authEnabled} onChange={handleAuthToggle} />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div><span className={cn('text-sm', themeStyle === 'apple-glass' ? 'text-slate-600' : 'text-slate-300')}>{t('settings.enableAuth')}</span><p className={cn('text-xs', themeStyle === 'apple-glass' ? 'text-slate-400' : 'text-slate-500')}>{t('settings.enableAuthDesc')}</p></div>
+            <Toggle value={authEnabled} onChange={handleAuthToggle} />
+          </div>
+          {/* 安全与隐私政策 */}
+          <button
+            onClick={() => navigate('/legal')}
+            className={cn(
+              'w-full flex items-center justify-between p-3 rounded-xl transition-all',
+              themeStyle === 'apple-glass' 
+                ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 border border-amber-500/20' 
+                : 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 border border-amber-500/20'
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', themeStyle === 'apple-glass' ? 'bg-amber-500/20' : 'bg-amber-500/20')}>
+                <Shield className="w-4 h-4 text-amber-500" />
+              </div>
+              <div className="text-left">
+                <div className={cn('text-sm font-medium', themeStyle === 'apple-glass' ? 'text-slate-700' : 'text-white')}>
+                  {t('legal.securityPolicy')}
+                </div>
+                <div className={cn('text-xs', themeStyle === 'apple-glass' ? 'text-slate-500' : 'text-slate-400')}>
+                  {t('legal.securityPolicyDesc')}
+                </div>
+              </div>
+            </div>
+            <ChevronRight className={cn('w-5 h-5', themeStyle === 'apple-glass' ? 'text-slate-400' : 'text-slate-500')} />
+          </button>
         </div>
       </div>
 

@@ -52,8 +52,13 @@ type ProxySettings struct {
 	// === GEO 数据 ===
 	GeodataMode       bool   `json:"geodataMode" yaml:"geodata-mode"`              // 使用 dat 格式
 	GeodataLoader     string `json:"geodataLoader" yaml:"geodata-loader"`          // 加载器: standard/memconservative
+	GeositeMatcher    string `json:"geositeMatcher" yaml:"geosite-matcher"`        // 匹配器: hybrid/succinct
 	GeoAutoUpdate     bool   `json:"geoAutoUpdate" yaml:"geo-auto-update"`         // 自动更新
 	GeoUpdateInterval int    `json:"geoUpdateInterval" yaml:"geo-update-interval"` // 更新间隔 (小时)
+
+	// === 外部资源 ===
+	GlobalUA    string `json:"globalUa" yaml:"global-ua"`       // 下载外部资源的 UA
+	ETagSupport bool   `json:"etagSupport" yaml:"etag-support"` // ETag 缓存支持
 
 	// === 网络接口 ===
 	InterfaceName string `json:"interfaceName" yaml:"interface-name"` // 出站接口
@@ -178,8 +183,13 @@ func GetDefaultProxySettings() *ProxySettings {
 		// GEO 数据
 		GeodataMode:       true,       // dat 格式查询更快
 		GeodataLoader:     "standard", // 内存充足用 standard
+		GeositeMatcher:    "succinct", // 高效匹配器
 		GeoAutoUpdate:     true,
 		GeoUpdateInterval: 24,
+
+		// 外部资源
+		GlobalUA:    "clash.meta",
+		ETagSupport: true,
 
 		// 网络接口
 		InterfaceName: "",

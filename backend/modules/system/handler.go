@@ -3,9 +3,11 @@ package system
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/net/proxy"
 )
 
 // Handler 系统管理 API 处理器
@@ -33,6 +35,10 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/proxy/enable", h.EnableSystemProxy)
 	r.POST("/proxy/disable", h.DisableSystemProxy)
 	r.GET("/proxy/status", h.GetSystemProxyStatus)
+	// 浏览器代理
+	r.GET("/browsers", h.GetBrowsers)
+	r.POST("/browsers/firefox/configure", h.ConfigureFirefox)
+	r.POST("/browsers/firefox/clear", h.ClearFirefox)
 	// 出口 IP 信息
 	r.GET("/geoip", h.GetGeoIP)
 }
@@ -282,10 +288,33 @@ func findSubstring(s, substr string) bool {
 	return false
 }
 
-// GetGeoIP 获取出口 IP 信息
+// createProxyClient 创建通过 Mihomo 代理的 HTTP 客户端
+func createProxyClient() *http.Client {
+	// 尝试通过 SOCKS5 代理（端口 7891）
+	dialer, err := proxy.SOCKS5("tcp", "127.0.0.1:7890", nil, proxy.Direct)
+	if err != nil {
+		// 如果 SOCKS5 失败，尝试 HTTP 代理
+		proxyURL, _ := url.Parse("http://127.0.0.1:7890")
+		return &http.Client{
+			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				Proxy: http.ProxyURL(proxyURL),
+			},
+		}
+	}
+	return &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			Dial: dialer.Dial,
+		},
+	}
+}
+
+// GetGeoIP 获取出口 IP 信息（通过 Mihomo 代理请求）
 func (h *Handler) GetGeoIP(c *gin.Context) {
 	lang := c.DefaultQuery("lang", "zh")
-	client := &http.Client{Timeout: 10 * time.Second}
+	// 通过代理请求，获取代理出口的真实 IP
+	client := createProxyClient()
 	var geoInfo GeoIPInfo
 
 	if lang == "zh" {
@@ -388,5 +417,47 @@ func (h *Handler) GetGeoIP(c *gin.Context) {
 		"code":    0,
 		"message": "success",
 		"data":    geoInfo,
+	})
+}
+
+// GetBrowsers 获取已安装的浏览器列表
+func (h *Handler) GetBrowsers(c *gin.Context) {
+	browsers := GetInstalledBrowsers()
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data":    browsers,
+	})
+}
+
+// ConfigureFirefox 配置 Firefox 使用系统代理
+func (h *Handler) ConfigureFirefox(c *gin.Context) {
+	if err := ConfigureFirefoxProxy(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "Firefox 已配置使用系统代理，请重启浏览器",
+	})
+}
+
+// ClearFirefox 清除 Firefox 代理配置
+func (h *Handler) ClearFirefox(c *gin.Context) {
+	if err := ClearFirefoxProxy(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    1,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "Firefox 代理配置已清除",
 	})
 }

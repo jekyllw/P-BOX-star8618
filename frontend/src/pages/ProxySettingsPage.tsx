@@ -922,11 +922,33 @@ export default function ProxySettingsPage() {
             themeStyle={themeStyle}
           />
         </FormField>
+        <FormField label={t('proxySettings.geositeMatcher')} description={t('proxySettings.geositeMatcherDesc')} themeStyle={themeStyle}>
+          <Select 
+            value={settings.geositeMatcher || 'succinct'} 
+            onChange={(v) => updateSettings('geositeMatcher', v)}
+            options={[
+              { value: 'succinct', label: 'Succinct (推荐)' },
+              { value: 'hybrid', label: 'Hybrid' },
+            ]}
+            themeStyle={themeStyle}
+          />
+        </FormField>
         <FormField label={t('proxySettings.geoAutoUpdate')} themeStyle={themeStyle}>
           <Toggle checked={settings.geoAutoUpdate} onChange={(v) => updateSettings('geoAutoUpdate', v)} themeStyle={themeStyle} />
         </FormField>
         <FormField label={t('proxySettings.geoUpdateInterval')} description={t('proxySettings.geoUpdateIntervalDesc')} themeStyle={themeStyle}>
           <NumberInput value={settings.geoUpdateInterval} onChange={(v) => updateSettings('geoUpdateInterval', v)} min={1} max={168} themeStyle={themeStyle} />
+        </FormField>
+        <FormField label={t('proxySettings.etagSupport')} description={t('proxySettings.etagSupportDesc')} themeStyle={themeStyle}>
+          <Toggle checked={settings.etagSupport !== false} onChange={(v) => updateSettings('etagSupport', v)} themeStyle={themeStyle} />
+        </FormField>
+        <FormField label={t('proxySettings.globalUa')} description={t('proxySettings.globalUaDesc')} themeStyle={themeStyle}>
+          <TextInput 
+            value={settings.globalUa || 'clash.meta'} 
+            onChange={(v) => updateSettings('globalUa', v)} 
+            placeholder="clash.meta"
+            themeStyle={themeStyle} 
+          />
         </FormField>
       </SettingsSection>
     </div>

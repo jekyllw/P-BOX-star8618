@@ -10,6 +10,7 @@ find-process-mode: "off"
 global-client-fingerprint: chrome
 geodata-mode: true
 geodata-loader: standard
+geosite-matcher: succinct
 geo-auto-update: true
 geo-update-interval: 24
 geox-url:
@@ -17,6 +18,8 @@ geox-url:
     geosite: /Volumes/Tools+/编程/mihimo-web/p-box/backend/data/geosite.dat
     mmdb: /Volumes/Tools+/编程/mihimo-web/p-box/backend/data/country.mmdb
     asn: /Volumes/Tools+/编程/mihimo-web/p-box/backend/data/GeoLite2-ASN.mmdb
+global-ua: clash.meta
+etag-support: true
 keep-alive-interval: 30
 keep-alive-idle: 60
 profile:

@@ -20,3 +20,40 @@ func ClearSystemProxy() error {
 func GetSystemProxyStatus() (bool, string, int, error) {
 	return false, "", 0, fmt.Errorf("not supported on Linux, use TUN mode instead")
 }
+
+// BrowserInfo 浏览器信息
+type BrowserInfo struct {
+	Name            string `json:"name"`
+	BundleID        string `json:"bundleId"`
+	Path            string `json:"path"`
+	FollowsSystem   bool   `json:"followsSystem"`
+	ProxyConfigured bool   `json:"proxyConfigured"`
+}
+
+// GetInstalledBrowsers 获取已安装的浏览器列表 (Linux 使用 TUN 模式，不需要)
+func GetInstalledBrowsers() []BrowserInfo {
+	return nil
+}
+
+// ConfigureFirefoxProxy 配置 Firefox 使用系统代理 (Linux 使用 TUN 模式)
+func ConfigureFirefoxProxy() error {
+	return fmt.Errorf("Linux 建议使用 TUN 模式，无需配置浏览器代理")
+}
+
+// ClearFirefoxProxy 清除 Firefox 代理配置
+func ClearFirefoxProxy() error {
+	return nil
+}
+
+// SetBrowserBackupPath 设置备份路径 (Linux 使用 TUN 模式)
+func SetBrowserBackupPath(dataDir string) {}
+
+// ConfigureAllBrowsersProxy 配置所有浏览器 (Linux 使用 TUN 模式，不需要)
+func ConfigureAllBrowsersProxy() error {
+	return nil
+}
+
+// RestoreAllBrowsersProxy 恢复所有浏览器 (Linux 使用 TUN 模式)
+func RestoreAllBrowsersProxy() error {
+	return nil
+}

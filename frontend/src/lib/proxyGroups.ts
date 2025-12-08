@@ -123,7 +123,9 @@ export function getGroupOrder(name: string): number {
 // 国家代码转国旗 emoji
 export function countryCodeToFlag(code: string): string {
   if (!code || code.length !== 2) return '🌐'
-  const codePoints = code.toUpperCase().split('').map(char => 127397 + char.charCodeAt(0))
+  // 台湾使用中国国旗
+  const normalizedCode = code.toUpperCase() === 'TW' ? 'CN' : code.toUpperCase()
+  const codePoints = normalizedCode.split('').map(char => 127397 + char.charCodeAt(0))
   return String.fromCodePoint(...codePoints)
 }
 

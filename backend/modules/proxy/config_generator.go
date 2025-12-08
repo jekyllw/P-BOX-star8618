@@ -35,13 +35,17 @@ type MihomoConfig struct {
 	GlobalClientFinger string   `yaml:"global-client-fingerprint,omitempty"`
 	GeodataMode        bool     `yaml:"geodata-mode,omitempty"`
 	GeodataLoader      string   `yaml:"geodata-loader,omitempty"`
+	GeositeMatcher     string   `yaml:"geosite-matcher,omitempty"` // succinct: 高效匹配器
 	GeoAutoUpdate      bool     `yaml:"geo-auto-update,omitempty"`
 	GeoUpdateInterval  int      `yaml:"geo-update-interval,omitempty"`
 	GeoxURL            *GeoxURL `yaml:"geox-url,omitempty"`
+	GlobalUA           string   `yaml:"global-ua,omitempty"`    // 下载外部资源的 UA
+	ETagSupport        bool     `yaml:"etag-support,omitempty"` // ETag 缓存支持
 
 	// TCP Keep-Alive 配置 (降低移动设备功耗)
-	KeepAliveInterval int `yaml:"keep-alive-interval,omitempty"`
-	KeepAliveIdle     int `yaml:"keep-alive-idle,omitempty"`
+	KeepAliveInterval int  `yaml:"keep-alive-interval,omitempty"`
+	KeepAliveIdle     int  `yaml:"keep-alive-idle,omitempty"`
+	DisableKeepAlive  bool `yaml:"disable-keep-alive,omitempty"` // 完全禁用 (省电模式)
 
 	// 模块配置
 	Profile *ProfileConfig `yaml:"profile,omitempty"`
@@ -134,6 +138,10 @@ type TUNConfig struct {
 	MTU                 int      `yaml:"mtu,omitempty"`
 	UDPTimeout          int      `yaml:"udp-timeout,omitempty"`
 
+	// GSO 通用分段卸载 (仅 Linux，提升吞吐量)
+	GSO        bool `yaml:"gso,omitempty"`
+	GSOMaxSize int  `yaml:"gso-max-size,omitempty"`
+
 	// 路由地址 (不配置则使用默认路由 0.0.0.0/0)
 	RouteAddress        []string `yaml:"route-address,omitempty"`
 	RouteExcludeAddress []string `yaml:"route-exclude-address,omitempty"` // 排除的地址，如局域网
@@ -198,6 +206,27 @@ type ConfigGeneratorOptions struct {
 	ExternalController string `json:"externalController"`
 	Secret             string `json:"secret"`
 
+	// 性能优化设置（从 ProxySettings 读取）
+	UnifiedDelay            bool   `json:"unifiedDelay"`
+	TCPConcurrent           bool   `json:"tcpConcurrent"`
+	FindProcessMode         string `json:"findProcessMode"`
+	GlobalClientFingerprint string `json:"globalClientFingerprint"`
+	KeepAliveInterval       int    `json:"keepAliveInterval"`
+	KeepAliveIdle           int    `json:"keepAliveIdle"`
+	DisableKeepAlive        bool   `json:"disableKeepAlive"`
+
+	// GEO 数据设置
+	GeodataMode       bool   `json:"geodataMode"`
+	GeodataLoader     string `json:"geodataLoader"`
+	GeositeMatcher    string `json:"geositeMatcher"`
+	GeoAutoUpdate     bool   `json:"geoAutoUpdate"`
+	GeoUpdateInterval int    `json:"geoUpdateInterval"`
+	GlobalUA          string `json:"globalUa"`
+	ETagSupport       bool   `json:"etagSupport"`
+
+	// TUN 设置
+	TUNSettings *TUNSettings `json:"tunSettings"`
+
 	// 配置模板（可选，为 nil 时使用默认生成）
 	Template *ConfigTemplate `json:"-"`
 }
@@ -209,6 +238,29 @@ type ConfigGenerator struct {
 
 func NewConfigGenerator(dataDir string) *ConfigGenerator {
 	return &ConfigGenerator{dataDir: dataDir}
+}
+
+// helper 函数：布尔值默认值
+func getOrDefault(val bool, def bool) bool {
+	// bool 零值是 false，无法区分是否设置
+	// 这里直接返回传入的值，默认值在 options 初始化时设置
+	return val || def
+}
+
+// helper 函数：字符串默认值
+func getOrDefaultStr(val string, def string) string {
+	if val == "" {
+		return def
+	}
+	return val
+}
+
+// helper 函数：整数默认值
+func getOrDefaultInt(val int, def int) int {
+	if val == 0 {
+		return def
+	}
+	return val
 }
 
 // GenerateConfig 生成 Mihomo 配置
@@ -236,21 +288,25 @@ func (g *ConfigGenerator) GenerateConfig(nodes []ProxyNode, options ConfigGenera
 		ExternalController: options.ExternalController,
 		Secret:             options.Secret,
 
-		// 高级配置 (Linux 网关最高性能)
-		UnifiedDelay:       true,  // 统一延迟计算
-		TCPConcurrent:      true,  // TCP 并发连接，使用所有解析 IP 同时连接
-		FindProcessMode:    "off", // 网关模式关闭进程匹配，最大性能
-		GlobalClientFinger: "chrome",
-		GeodataMode:        true,       // 使用 dat 格式，查询更快
-		GeodataLoader:      "standard", // 标准加载器，内存充足时更快
-		GeoAutoUpdate:      true,
-		GeoUpdateInterval:  24,
+		// 高级配置 (从代理设置读取)
+		UnifiedDelay:       getOrDefault(options.UnifiedDelay, true),
+		TCPConcurrent:      getOrDefault(options.TCPConcurrent, true),
+		FindProcessMode:    getOrDefaultStr(options.FindProcessMode, "off"),
+		GlobalClientFinger: getOrDefaultStr(options.GlobalClientFingerprint, "chrome"),
+		GeodataMode:        getOrDefault(options.GeodataMode, true),
+		GeodataLoader:      getOrDefaultStr(options.GeodataLoader, "standard"),
+		GeositeMatcher:     getOrDefaultStr(options.GeositeMatcher, "succinct"),
+		GeoAutoUpdate:      getOrDefault(options.GeoAutoUpdate, true),
+		GeoUpdateInterval:  getOrDefaultInt(options.GeoUpdateInterval, 24),
+		GlobalUA:           getOrDefaultStr(options.GlobalUA, "clash.meta"),
+		ETagSupport:        getOrDefault(options.ETagSupport, true),
 
-		// TCP Keep-Alive (保持长连接)
-		KeepAliveInterval: 30,
-		KeepAliveIdle:     60,
+		// TCP Keep-Alive (从代理设置读取)
+		KeepAliveInterval: getOrDefaultInt(options.KeepAliveInterval, 15),
+		KeepAliveIdle:     getOrDefaultInt(options.KeepAliveIdle, 30),
+		DisableKeepAlive:  options.DisableKeepAlive,
 
-		// GEO 数据源 (优先使用本地文件，否则使用 MetaCubeX 的镜像)
+		// GEO 数据源
 		GeoxURL: g.getGeoxURL(),
 
 		// 缓存配置
@@ -273,32 +329,73 @@ func (g *ConfigGenerator) GenerateConfig(nodes []ProxyNode, options ConfigGenera
 	// DNS 配置
 	config.DNS = g.generateDNSConfig(options)
 
-	// TUN 配置 (Linux 网关高性能模式)
+	// TUN 配置 (从代理设置读取)
 	if options.EnableTUN {
+		tunSettings := options.TUNSettings
+		// 默认 TUN 设置
+		device := "p-box"
+		stack := "mixed"
+		mtu := 9000
+		udpTimeout := 300
+		gso := true
+		gsoMaxSize := 65536
+		strictRoute := true
+		autoRoute := true
+		autoRedirect := true
+		autoDetectInterface := true
+		endpointIndependentNat := true
+		dnsHijack := []string{"any:53", "tcp://any:53"}
+		routeExcludeAddress := []string{
+			"192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12",
+			"127.0.0.0/8", "fc00::/7", "fe80::/10",
+		}
+
+		// 从设置覆盖
+		if tunSettings != nil {
+			if tunSettings.Device != "" {
+				device = tunSettings.Device
+			}
+			if tunSettings.Stack != "" {
+				stack = tunSettings.Stack
+			}
+			if tunSettings.MTU > 0 {
+				mtu = tunSettings.MTU
+			}
+			if tunSettings.UDPTimeout > 0 {
+				udpTimeout = tunSettings.UDPTimeout
+			}
+			gso = tunSettings.GSO
+			if tunSettings.GSOMaxSize > 0 {
+				gsoMaxSize = tunSettings.GSOMaxSize
+			}
+			strictRoute = tunSettings.StrictRoute
+			autoRoute = tunSettings.AutoRoute
+			autoRedirect = tunSettings.AutoRedirect
+			autoDetectInterface = tunSettings.AutoDetectInterface
+			endpointIndependentNat = tunSettings.EndpointIndependentNat
+			if len(tunSettings.DNSHijack) > 0 {
+				dnsHijack = tunSettings.DNSHijack
+			}
+			if len(tunSettings.RouteExcludeAddress) > 0 {
+				routeExcludeAddress = tunSettings.RouteExcludeAddress
+			}
+		}
+
 		config.TUN = &TUNConfig{
-			Enable:              true,
-			Device:              "p-box",
-			Stack:               "mixed", // mixed: TCP 用 system (稳定), UDP 用 gvisor (性能)
-			DNSHijack:           []string{"any:53", "tcp://any:53"},
-			AutoRoute:           true,
-			AutoRedirect:        true, // Linux 自动配置 iptables/nftables
-			AutoDetectInterface: true,
-			StrictRoute:         true, // 严格路由，防止流量泄漏
-			MTU:                 9000, // 最大 MTU，提升吞吐量
-			UDPTimeout:          300,  // UDP 超时 5 分钟
-
-			// Linux 网关专用优化
-			EndpointIndependentNat: true, // 端点独立 NAT，改善 NAT 穿透
-
-			// 排除私有网络地址 (作为网关时必须排除，否则局域网无法互通)
-			RouteExcludeAddress: []string{
-				"192.168.0.0/16", // 局域网
-				"10.0.0.0/8",     // 私有网络
-				"172.16.0.0/12",  // 私有网络
-				"127.0.0.0/8",    // 本地回环
-				"fc00::/7",       // IPv6 私有
-				"fe80::/10",      // IPv6 链路本地
-			},
+			Enable:                 true,
+			Device:                 device,
+			Stack:                  stack,
+			DNSHijack:              dnsHijack,
+			AutoRoute:              autoRoute,
+			AutoRedirect:           autoRedirect,
+			AutoDetectInterface:    autoDetectInterface,
+			StrictRoute:            strictRoute,
+			MTU:                    mtu,
+			UDPTimeout:             udpTimeout,
+			GSO:                    gso,
+			GSOMaxSize:             gsoMaxSize,
+			EndpointIndependentNat: endpointIndependentNat,
+			RouteExcludeAddress:    routeExcludeAddress,
 		}
 		// TUN 模式下调整 DNS 配置
 		if config.DNS != nil {

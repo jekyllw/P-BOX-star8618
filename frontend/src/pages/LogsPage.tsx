@@ -35,6 +35,8 @@ export default function LogsPage() {
   useEffect(() => {
     const connectWs = () => {
       wsRef.current?.close()
+      // 切换级别时清空日志
+      setLogs([])
       wsRef.current = mihomoApi.createLogsWs((data) => {
         if (pausedRef.current) return
         const logItem: LogItem = {

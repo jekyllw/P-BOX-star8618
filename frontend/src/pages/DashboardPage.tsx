@@ -25,6 +25,7 @@ export default function DashboardPage() {
   const { isRunning } = useProxyStore()
   const [status, setStatus] = useState<ProxyStatus | null>(null)
   const [traffic, setTraffic] = useState({ up: 0, down: 0, totalUp: 0, totalDown: 0 })
+  const [trafficHistory, setTrafficHistory] = useState<number[]>(Array(40).fill(0))
   const [connectionCount, setConnectionCount] = useState(0)
   const [memoryUsage, setMemoryUsage] = useState(0)
   const [sysResources, setSysResources] = useState<SystemResources | null>(null)
@@ -71,6 +72,11 @@ export default function DashboardPage() {
           up: data.up,
           down: data.down
         }))
+        // 更新流量历史记录（用于图表显示）
+        setTrafficHistory(prev => {
+          const newHistory = [...prev.slice(1), data.up + data.down]
+          return newHistory
+        })
       })
       
       trafficWs.onclose = () => {
@@ -229,8 +235,12 @@ export default function DashboardPage() {
       </svg>
     )
   }
-  // Generate fake bar heights for the chart
-  const bars = Array.from({ length: 40 }, () => Math.floor(Math.random() * 70) + 5)
+  // 计算图表柱状图高度（基于真实流量数据）
+  const maxTraffic = Math.max(...trafficHistory, 1) // 避免除以0
+  const bars = trafficHistory.map(v => {
+    if (!isRunning || maxTraffic <= 0) return 0
+    return Math.max(5, Math.floor((v / maxTraffic) * 100))
+  })
 
   return (
     <div className="space-y-6">
