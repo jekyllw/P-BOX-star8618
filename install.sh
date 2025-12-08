@@ -43,13 +43,16 @@ detect_arch() {
             echo "arm64"
             ;;
         *)
-            echo -e "${RED}❌ Unsupported architecture: $arch${NC}"
-            exit 1
+            echo ""
             ;;
     esac
 }
 
 ARCH=$(detect_arch)
+if [ -z "$ARCH" ]; then
+    echo -e "${RED}❌ Unsupported architecture: $(uname -m)${NC}"
+    exit 1
+fi
 echo -e "${GREEN}✓ Detected architecture: ${CYAN}${ARCH}${NC}"
 
 # Get latest version
@@ -57,10 +60,13 @@ echo -e "${BLUE}📥 Fetching latest version...${NC}"
 
 VERSION=""
 if command -v curl &> /dev/null; then
-    VERSION=$(curl -s "$GITHUB_API" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"v?([^"]+)".*/\1/' | head -n 1)
+    VERSION=$(curl -s "$GITHUB_API" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' | head -n 1)
 elif command -v wget &> /dev/null; then
-    VERSION=$(wget -qO- "$GITHUB_API" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"v?([^"]+)".*/\1/' | head -n 1)
+    VERSION=$(wget -qO- "$GITHUB_API" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' | head -n 1)
 fi
+
+# Remove 'v' prefix if present
+VERSION=${VERSION#v}
 
 if [ -z "$VERSION" ]; then
     echo -e "${RED}❌ Failed to get latest version${NC}"
@@ -69,7 +75,7 @@ fi
 
 echo -e "${GREEN}✓ Latest version: ${CYAN}v${VERSION}${NC}"
 
-# Download URL
+# Download URL (GitHub uses 'v' prefix in release tags)
 FILENAME="p-box-linux-${ARCH}.tar.gz"
 DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/${FILENAME}"
 
@@ -86,9 +92,12 @@ download_success=false
 
 # Try CDN
 if curl -sL --connect-timeout 15 -o "$TEMP_FILE" "$CDN_URL" 2>/dev/null; then
-    if [ -s "$TEMP_FILE" ]; then
+    # Verify it's a valid gzip file
+    if [ -s "$TEMP_FILE" ] && file "$TEMP_FILE" | grep -q "gzip"; then
         echo -e "${GREEN}✓ Downloaded from CDN${NC}"
         download_success=true
+    else
+        rm -f "$TEMP_FILE"
     fi
 fi
 
@@ -96,7 +105,7 @@ fi
 if [ "$download_success" = false ]; then
     echo -e "${YELLOW}→ CDN failed, trying GitHub...${NC}"
     if curl -sL --connect-timeout 30 -o "$TEMP_FILE" "$DOWNLOAD_URL" 2>/dev/null; then
-        if [ -s "$TEMP_FILE" ]; then
+        if [ -s "$TEMP_FILE" ] && file "$TEMP_FILE" | grep -q "gzip"; then
             echo -e "${GREEN}✓ Downloaded from GitHub${NC}"
             download_success=true
         fi
@@ -129,7 +138,13 @@ if [ -z "$EXTRACTED_DIR" ]; then
 fi
 
 # Copy files
-cp -r "$EXTRACTED_DIR"/* "$INSTALL_DIR/" 2>/dev/null || cp -r "$TEMP_DIR"/p-box* "$INSTALL_DIR/"
+if [ -d "$EXTRACTED_DIR" ] && [ "$(ls -A $EXTRACTED_DIR)" ]; then
+    cp -r "$EXTRACTED_DIR"/* "$INSTALL_DIR/"
+else
+    echo -e "${RED}❌ Extraction failed${NC}"
+    rm -rf "$TEMP_DIR"
+    exit 1
+fi
 
 # Set permissions
 chmod +x "$INSTALL_DIR/p-box"
